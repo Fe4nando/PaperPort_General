@@ -11,6 +11,7 @@ import streamlit as st
 from PyPDF2 import PdfMerger
 from reportlab.lib.colors import Color, HexColor, white
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
@@ -29,6 +30,7 @@ ALEVEL_SUBJECTS = json.loads(st.secrets["ALEVEL_SUBJECTS"])
 DATA_FILE = "data.json"
 REQUESTS_FILE = "custom_school_requests.json"
 DEFAULT_FONT_PATH = "Poppins-Bold.ttf"
+GENERAL_COVER_PATH = "GENERAL_COVER.png"
 
 SESSION_OPTIONS = {
     "FEB/MAR": "m",
@@ -163,27 +165,15 @@ def build_cover_lines(subject_name, paper_type_short, paper_no, level, subject_c
     return heading, subject_name.upper(), paper_line
 
 
-def draw_public_cover_background(cover, page_width, page_height):
-    cover.setFillColor(HexColor("#13245A"))
-    cover.rect(0, 0, page_width, page_height, fill=1, stroke=0)
-
-    cover.saveState()
-    cover.translate(page_width / 2, page_height / 2)
-    cover.rotate(45)
-    cover.setFillColor(Color(0.06, 0.10, 0.24, alpha=0.24))
-    cover.setFont(COVER_FONT_NAME, 26)
-    for x in range(-900, 1000, 290):
-        for y in range(-1300, 1400, 145):
-            cover.drawString(x, y, "COMPILED BY PAPERPILOT")
-    cover.restoreState()
-
-
 def create_public_cover_pdf(level, subject_name, subject_code, paper_type_short, paper_no):
+    if not os.path.exists(GENERAL_COVER_PATH):
+        return None
+
     packet = BytesIO()
     page_width, page_height = A4
     cover = canvas.Canvas(packet, pagesize=A4)
 
-    draw_public_cover_background(cover, page_width, page_height)
+    cover.drawImage(ImageReader(GENERAL_COVER_PATH), 0, 0, width=page_width, height=page_height)
     heading, title, paper_line = build_cover_lines(
         subject_name, paper_type_short, paper_no, level, subject_code
     )
@@ -324,7 +314,9 @@ def render_home_page():
         with zipfile.ZipFile(output_zip, "w") as zf:
             if paper_type_short == "gt":
                 merger = PdfMerger()
-                merger.append(create_public_cover_pdf(level_choice, subject_name, subject_code, paper_type_short, None))
+                cover_pdf = create_public_cover_pdf(level_choice, subject_name, subject_code, paper_type_short, None)
+                if cover_pdf:
+                    merger.append(cover_pdf)
                 for pdf in gt_downloads:
                     pdf.seek(0)
                     merger.append(pdf)
@@ -343,9 +335,11 @@ def render_home_page():
                         continue
 
                     merger = PdfMerger()
-                    merger.append(
-                        create_public_cover_pdf(level_choice, subject_name, subject_code, paper_type_short, num)
+                    cover_pdf = create_public_cover_pdf(
+                        level_choice, subject_name, subject_code, paper_type_short, num
                     )
+                    if cover_pdf:
+                        merger.append(cover_pdf)
                     for pdf in pdf_list:
                         pdf.seek(0)
                         merger.append(pdf)
