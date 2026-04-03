@@ -288,7 +288,7 @@ def download_paper(args):
     url = f"https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/{filename}"
 
     try:
-        response = requests.get(url, timeout=8)
+        response = requests.get(url, headers=HEADERS, timeout=8)
         if response.status_code == 200 and response.content.startswith(b"%PDF"):
             return paper_no, filename, BytesIO(response.content)
         return paper_no, filename, None
@@ -338,11 +338,17 @@ def render_home_page():
     paper_numbers = [p.strip() for p in paper_input.split() if p.strip()]
 
     if st.button("Generate Public General Pack"):
+        st.session_state["public_general_zip_bytes"] = None
+        st.session_state["public_general_zip_name"] = None
+
         if paper_type_short != "gt" and not paper_numbers:
             st.error("Please enter at least one paper number.")
             return
         if not sessions:
             st.error("Please select at least one session.")
+            return
+        if not os.path.exists(GENERAL_COVER_PATH):
+            st.error(f"Cover image not found: {GENERAL_COVER_PATH}")
             return
 
         tasks = []
