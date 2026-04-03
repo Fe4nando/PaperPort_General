@@ -198,7 +198,7 @@ def send_school_request_notification(payload):
 
 
 def build_debug_info():
-    email_keys = [
+    email_secret_keys = [
         "SMTP_HOST",
         "SMTP_PORT",
         "SMTP_USERNAME",
@@ -207,23 +207,23 @@ def build_debug_info():
         "NOTIFICATION_EMAIL_FROM",
         "SMTP_USE_TLS",
     ]
-    email_status = {}
-    for key in email_keys:
-        if key not in st.secrets:
-            email_status[key] = "missing" if key != "NOTIFICATION_EMAIL_FROM" else "optional/missing"
+    email_secret_status = {}
+    for secret_key in email_secret_keys:
+        if secret_key not in st.secrets:
+            email_secret_status[secret_key] = "missing" if secret_key != "NOTIFICATION_EMAIL_FROM" else "optional/missing"
         else:
-            value = str(st.secrets[key]).strip()
-            email_status[key] = "present" if value else "empty"
+            secret_value = str(st.secrets[secret_key]).strip()
+            email_secret_status[secret_key] = "present" if secret_value else "empty"
 
     return {
         "cover": {
-            "GENERAL_COVER.png found": os.path.exists(GENERAL_COVER_PATH),
+            "cover file found": os.path.exists(GENERAL_COVER_PATH),
             "cover path": os.path.abspath(GENERAL_COVER_PATH),
             "font found": os.path.exists(DEFAULT_FONT_PATH),
         },
-        "email": email_status,
-        "secret keys": {
-            "loaded keys": ", ".join(sorted(st.secrets.keys())) if len(st.secrets.keys()) > 0 else "(none)",
+        "email secrets": email_secret_status,
+        "loaded secrets": {
+            "secret names": ", ".join(sorted(st.secrets.keys())) if len(st.secrets.keys()) > 0 else "(none)",
         },
         "download": {
             "zip ready": bool(st.session_state.get("public_general_zip_bytes")),
