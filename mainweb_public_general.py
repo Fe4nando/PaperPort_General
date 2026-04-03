@@ -2,8 +2,10 @@ import concurrent.futures
 import json
 import os
 import re
+import smtplib
 import zipfile
 from datetime import datetime
+from email.message import EmailMessage
 from io import BytesIO
 
 import requests
@@ -141,6 +143,56 @@ def save_school_request(payload):
 
     with open(REQUESTS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
+
+
+def send_school_request_notification(payload):
+    required_keys = [
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+        "NOTIFICATION_EMAIL_TO",
+    ]
+    missing_keys = [key for key in required_keys if key not in st.secrets]
+    if missing_keys:
+        return False, f"Missing email secrets: {', '.join(missing_keys)}"
+
+    smtp_host = st.secrets["SMTP_HOST"]
+    smtp_port = int(st.secrets["SMTP_PORT"])
+    smtp_username = st.secrets["SMTP_USERNAME"]
+    smtp_password = st.secrets["SMTP_PASSWORD"]
+    notification_to = st.secrets["NOTIFICATION_EMAIL_TO"]
+    notification_from = st.secrets.get("NOTIFICATION_EMAIL_FROM", smtp_username)
+    use_tls = str(st.secrets.get("SMTP_USE_TLS", "true")).lower() == "true"
+
+    message = EmailMessage()
+    message["Subject"] = f"New PaperPort school request: {payload['school_name']}"
+    message["From"] = notification_from
+    message["To"] = notification_to
+    message.set_content(
+        "\n".join(
+            [
+                "A new custom school merger request was submitted.",
+                "",
+                f"Timestamp: {payload['timestamp']}",
+                f"School Name: {payload['school_name']}",
+                f"Contact Person: {payload['contact_name']}",
+                f"Contact Email: {payload['contact_email']}",
+                f"Country: {payload['country']}",
+                "",
+                "Notes:",
+                payload["notes"] or "(No extra notes provided)",
+            ]
+        )
+    )
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+        if use_tls:
+            server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(message)
+
+    return True, None
 
 
 def format_papers(text):
@@ -457,17 +509,26 @@ def render_request_page():
             st.error("Please fill in the school name, contact person, and contact email.")
             return
 
-        save_school_request(
-            {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "school_name": school_name,
-                "contact_name": contact_name,
-                "contact_email": contact_email,
-                "country": country,
-                "notes": notes,
-            }
-        )
-        st.success("Your request has been saved. Thank you.")
+        payload = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "school_name": school_name,
+            "contact_name": contact_name,
+            "contact_email": contact_email,
+            "country": country,
+            "notes": notes,
+        }
+
+        save_school_request(payload)
+
+        try:
+            email_sent, email_error = send_school_request_notification(payload)
+        except Exception as exc:
+            email_sent, email_error = False, str(exc)
+
+        if email_sent:
+            st.success("Your request has been saved and emailed successfully.")
+        else:
+            st.warning(f"Your request was saved, but email notification was not sent. {email_error}")
 
 
 page = st.radio(
