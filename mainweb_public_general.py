@@ -51,6 +51,18 @@ st.markdown(
     background: #ffffff;
     color: #000000;
 }
+.stButton > button, .stDownloadButton > button {
+    background: #163a8c;
+    color: #ffffff;
+    border: 1px solid #163a8c;
+    border-radius: 12px;
+    font-weight: 600;
+}
+.stButton > button:hover, .stDownloadButton > button:hover {
+    background: #102d6f;
+    border-color: #102d6f;
+    color: #ffffff;
+}
 .page-card {
     background: #ffffff;
     border: 1px solid #d7deed;
@@ -366,7 +378,7 @@ def render_home_page():
             """
 <div class="download-card">
 <strong>Your ZIP is ready.</strong><br>
-Use the button below to download the generated public general pack.
+Use the blue button below to download the generated public general pack.
 </div>
 """,
             unsafe_allow_html=True,
