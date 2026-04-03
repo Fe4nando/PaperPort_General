@@ -197,6 +197,57 @@ def send_school_request_notification(payload):
     return True, None
 
 
+def send_requester_confirmation_email(payload):
+    required_keys = [
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+    ]
+    missing_keys = [key for key in required_keys if key not in st.secrets]
+    if missing_keys:
+        return False, f"Missing email secrets: {', '.join(missing_keys)}"
+
+    smtp_host = st.secrets["SMTP_HOST"]
+    smtp_port = int(st.secrets["SMTP_PORT"])
+    smtp_username = st.secrets["SMTP_USERNAME"]
+    smtp_password = st.secrets["SMTP_PASSWORD"]
+    notification_from = st.secrets.get("NOTIFICATION_EMAIL_FROM", smtp_username)
+    use_tls = str(st.secrets.get("SMTP_USE_TLS", "true")).lower() == "true"
+
+    message = EmailMessage()
+    message["Subject"] = "PaperPort request received"
+    message["From"] = notification_from
+    message["To"] = payload["contact_email"]
+    message.set_content(
+        "\n".join(
+            [
+                f"Hello {payload['contact_name']},",
+                "",
+                "Thank you for submitting a request for a custom school past paper merger through PaperPort.",
+                "We have received your request successfully and will contact you shortly.",
+                "",
+                "Please note that this service is provided free of cost for schools.",
+                "",
+                "This email was generated automatically to confirm that your request has been received.",
+                "You do not need to reply unless you want to add more information.",
+                "",
+                "Best regards,",
+                "Fernando Gabriel Morera",
+                "PaperPort",
+            ]
+        )
+    )
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+        if use_tls:
+            server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(message)
+
+    return True, None
+
+
 def build_debug_info():
     email_secret_keys = [
         "SMTP_HOST",
@@ -597,8 +648,17 @@ def render_request_page():
         except Exception as exc:
             email_sent, email_error = False, str(exc)
 
-        if email_sent:
-            st.success("Your request has been saved and emailed successfully.")
+        try:
+            confirmation_sent, confirmation_error = send_requester_confirmation_email(payload)
+        except Exception as exc:
+            confirmation_sent, confirmation_error = False, str(exc)
+
+        if email_sent and confirmation_sent:
+            st.success("Your request has been saved, emailed to the admin, and confirmed to the requester.")
+        elif email_sent:
+            st.warning(
+                f"Your request was saved and emailed to the admin, but the requester confirmation email was not sent. {confirmation_error}"
+            )
         else:
             st.warning(f"Your request was saved, but email notification was not sent. {email_error}")
 
