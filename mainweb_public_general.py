@@ -99,8 +99,6 @@ if "public_general_zip_bytes" not in st.session_state:
     st.session_state["public_general_zip_bytes"] = None
 if "public_general_zip_name" not in st.session_state:
     st.session_state["public_general_zip_name"] = None
-if "public_debug_info" not in st.session_state:
-    st.session_state["public_debug_info"] = {}
 
 
 def register_cover_font():
@@ -248,57 +246,6 @@ def send_requester_confirmation_email(payload):
     return True, None
 
 
-def build_debug_info():
-    email_secret_keys = [
-        "SMTP_HOST",
-        "SMTP_PORT",
-        "SMTP_USERNAME",
-        "SMTP_PASSWORD",
-        "NOTIFICATION_EMAIL_TO",
-        "NOTIFICATION_EMAIL_FROM",
-        "SMTP_USE_TLS",
-    ]
-    email_secret_status = {}
-    for secret_key in email_secret_keys:
-        if secret_key not in st.secrets:
-            email_secret_status[secret_key] = "missing" if secret_key != "NOTIFICATION_EMAIL_FROM" else "optional/missing"
-        else:
-            secret_value = str(st.secrets[secret_key]).strip()
-            email_secret_status[secret_key] = "present" if secret_value else "empty"
-
-    return {
-        "cover": {
-            "cover file found": os.path.exists(GENERAL_COVER_PATH),
-            "cover path": os.path.abspath(GENERAL_COVER_PATH),
-            "font found": os.path.exists(DEFAULT_FONT_PATH),
-        },
-        "email secrets": email_secret_status,
-        "loaded secrets": {
-            "secret names": ", ".join(sorted(st.secrets.keys())) if len(st.secrets.keys()) > 0 else "(none)",
-        },
-        "download": {
-            "zip ready": bool(st.session_state.get("public_general_zip_bytes")),
-            "zip name": st.session_state.get("public_general_zip_name") or "(none)",
-        },
-        "selections": {},
-    }
-
-
-def render_debug_boxes():
-    debug_info = st.session_state.get("public_debug_info") or {}
-    if not debug_info:
-        return
-
-    st.write("")
-    st.subheader("Debug Panel")
-    cols = st.columns(len(debug_info))
-    for col, (section, values) in zip(cols, debug_info.items()):
-        with col:
-            st.markdown(f"**{section.title()}**")
-            for key, value in values.items():
-                st.info(f"{key}: {value}")
-
-
 def format_papers(text):
     cleaned = re.sub(r"\D", "", text)
     groups = [cleaned[i : i + 2] for i in range(0, len(cleaned), 2)]
@@ -441,17 +388,6 @@ def render_home_page():
     paper_input = format_papers(paper_input_raw)
     paper_numbers = [p.strip() for p in paper_input.split() if p.strip()]
 
-    debug_info = build_debug_info()
-    debug_info["selections"] = {
-        "level": level_choice,
-        "subject": subject_name,
-        "subject code": subject_code,
-        "paper type": paper_type,
-        "sessions": ", ".join(selected_session_labels) if selected_session_labels else "(none)",
-        "paper numbers": ", ".join(paper_numbers) if paper_numbers else "(none)",
-    }
-    st.session_state["public_debug_info"] = debug_info
-
     if st.button("Generate Public General Pack"):
         st.session_state["public_general_zip_bytes"] = None
         st.session_state["public_general_zip_name"] = None
@@ -586,7 +522,6 @@ Use the blue button below to download the generated public general pack.
             key="public_general_zip_download",
         )
 
-    render_debug_boxes()
 
 
 def render_about_page():
