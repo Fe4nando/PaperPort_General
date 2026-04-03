@@ -8,8 +8,9 @@ from io import BytesIO
 
 import requests
 import streamlit as st
+from PIL import Image
 from PyPDF2 import PdfMerger
-from reportlab.lib.colors import Color, HexColor, white
+from reportlab.lib.colors import HexColor, white
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
@@ -166,14 +167,40 @@ def build_cover_lines(subject_name, paper_type_short, paper_no, level, subject_c
 
 
 def create_public_cover_pdf(level, subject_name, subject_code, paper_type_short, paper_no):
-    if not os.path.exists(GENERAL_COVER_PATH):
+    if not GENERAL_COVER_PATH or not os.path.exists(GENERAL_COVER_PATH):
         return None
 
     packet = BytesIO()
     page_width, page_height = A4
     cover = canvas.Canvas(packet, pagesize=A4)
 
-    cover.drawImage(ImageReader(GENERAL_COVER_PATH), 0, 0, width=page_width, height=page_height)
+    try:
+        with Image.open(GENERAL_COVER_PATH) as img:
+            img_width, img_height = img.size
+    except Exception:
+        return None
+
+    page_ratio = page_width / page_height
+    image_ratio = img_width / img_height if img_height else page_ratio
+
+    if image_ratio > page_ratio:
+        draw_height = page_height
+        draw_width = draw_height * image_ratio
+    else:
+        draw_width = page_width
+        draw_height = draw_width / image_ratio if image_ratio else page_height
+
+    x = (page_width - draw_width) / 2
+    y = (page_height - draw_height) / 2
+
+    cover.drawImage(
+        ImageReader(GENERAL_COVER_PATH),
+        x,
+        y,
+        width=draw_width,
+        height=draw_height,
+        preserveAspectRatio=True,
+    )
     heading, title, paper_line = build_cover_lines(
         subject_name, paper_type_short, paper_no, level, subject_code
     )
