@@ -207,9 +207,13 @@ def build_debug_info():
         "NOTIFICATION_EMAIL_FROM",
         "SMTP_USE_TLS",
     ]
-    email_status = {key: (key in st.secrets and bool(str(st.secrets[key]).strip())) for key in email_keys if key in st.secrets or key != "NOTIFICATION_EMAIL_FROM"}
-    if "NOTIFICATION_EMAIL_FROM" not in email_status:
-        email_status["NOTIFICATION_EMAIL_FROM"] = "optional"
+    email_status = {}
+    for key in email_keys:
+        if key not in st.secrets:
+            email_status[key] = "missing" if key != "NOTIFICATION_EMAIL_FROM" else "optional/missing"
+        else:
+            value = str(st.secrets[key]).strip()
+            email_status[key] = "present" if value else "empty"
 
     return {
         "cover": {
@@ -218,6 +222,9 @@ def build_debug_info():
             "font found": os.path.exists(DEFAULT_FONT_PATH),
         },
         "email": email_status,
+        "secret keys": {
+            "loaded keys": ", ".join(sorted(st.secrets.keys())) if len(st.secrets.keys()) > 0 else "(none)",
+        },
         "download": {
             "zip ready": bool(st.session_state.get("public_general_zip_bytes")),
             "zip name": st.session_state.get("public_general_zip_name") or "(none)",
