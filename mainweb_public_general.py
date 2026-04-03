@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 
-st.set_page_config(page_title="PaperPort Public", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="PaperPort Public", layout="wide")
 
 LEVELS = st.secrets["LEVELS"]
 DOWNLOAD_DIR = st.secrets["DOWNLOAD_DIR"]
@@ -28,7 +28,6 @@ ALEVEL_SUBJECTS = json.loads(st.secrets["ALEVEL_SUBJECTS"])
 
 DATA_FILE = "data.json"
 REQUESTS_FILE = "custom_school_requests.json"
-DEFAULT_END_PAGE_PATH = "end.pdf"
 DEFAULT_FONT_PATH = "Poppins-Bold.ttf"
 
 SESSION_OPTIONS = {
@@ -48,33 +47,23 @@ PAPER_TYPE_OPTIONS = {
 st.markdown(
     """
 <style>
-.logo-container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: -10px;
-}
-.logo-container img {
-    height: 80px;
-    margin-bottom: 10px;
-}
-.logo-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #0A1D4E;
-    font-family: 'Poppins', sans-serif;
+.stApp {
+    background: #ffffff;
+    color: #000000;
 }
 .page-card {
-    background: #f7f9fc;
-    border: 1px solid #e3e8f0;
+    background: #ffffff;
+    border: 1px solid #d7deed;
     border-radius: 18px;
     padding: 22px;
 }
+.download-card {
+    background: #f4f7ff;
+    border: 1px solid #c7d5fb;
+    border-radius: 16px;
+    padding: 18px;
+}
 </style>
-<div class="logo-container">
-    <img src="https://raw.githubusercontent.com/Fe4nando/ComplieYourPapers/main/logo.png">
-    <div class="logo-title">PaperPort Public General Version</div>
-</div>
 """,
     unsafe_allow_html=True,
 )
@@ -88,6 +77,11 @@ def ensure_json_file(path, default_content):
 
 ensure_json_file(DATA_FILE, {"total_downloads": 0, "logs": []})
 ensure_json_file(REQUESTS_FILE, {"requests": []})
+
+if "public_general_zip_bytes" not in st.session_state:
+    st.session_state["public_general_zip_bytes"] = None
+if "public_general_zip_name" not in st.session_state:
+    st.session_state["public_general_zip_name"] = None
 
 
 def register_cover_font():
@@ -322,9 +316,6 @@ def render_home_page():
                 for pdf in gt_downloads:
                     pdf.seek(0)
                     merger.append(pdf)
-                if os.path.exists(DEFAULT_END_PAGE_PATH):
-                    merger.append(DEFAULT_END_PAGE_PATH)
-
                 merged_pdf = BytesIO()
                 merger.write(merged_pdf)
                 merger.close()
@@ -346,9 +337,6 @@ def render_home_page():
                     for pdf in pdf_list:
                         pdf.seek(0)
                         merger.append(pdf)
-                    if os.path.exists(DEFAULT_END_PAGE_PATH):
-                        merger.append(DEFAULT_END_PAGE_PATH)
-
                     merged_pdf = BytesIO()
                     merger.write(merged_pdf)
                     merger.close()
@@ -368,12 +356,28 @@ def render_home_page():
             len(failed),
         )
 
+        st.session_state["public_general_zip_bytes"] = output_zip.getvalue()
+        st.session_state["public_general_zip_name"] = f"{level_choice}_{subject_code}_public_general_pack.zip"
         st.success(f"Downloaded {len(downloaded)} papers. {len(failed)} failed.")
+
+    if st.session_state["public_general_zip_bytes"]:
+        st.write("")
+        st.markdown(
+            """
+<div class="download-card">
+<strong>Your ZIP is ready.</strong><br>
+Use the button below to download the generated public general pack.
+</div>
+""",
+            unsafe_allow_html=True,
+        )
         st.download_button(
             "Download Public General ZIP",
-            output_zip.getvalue(),
-            file_name=f"{level_choice}_{subject_code}_public_general_pack.zip",
+            st.session_state["public_general_zip_bytes"],
+            file_name=st.session_state["public_general_zip_name"],
             mime="application/zip",
+            use_container_width=True,
+            key="public_general_zip_download",
         )
 
 
@@ -433,7 +437,12 @@ def render_request_page():
         st.success("Your request has been saved. Thank you.")
 
 
-page = st.radio("", ["Main Page", "About", "Request Custom School Version"], horizontal=True)
+page = st.radio(
+    "Navigation",
+    ["Main Page", "About", "Request Custom School Version"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
 
 if page == "Main Page":
     render_home_page()
