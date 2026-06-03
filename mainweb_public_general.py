@@ -8,6 +8,8 @@ from datetime import datetime
 from email.message import EmailMessage
 from io import BytesIO
 
+from io import BytesIO
+import requests
 import requests
 import streamlit as st
 from PIL import Image
@@ -338,12 +340,22 @@ def download_paper(args):
 
     url = f"https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/{filename}"
 
+    
+    
     try:
         response = requests.get(url, headers=HEADERS, timeout=8)
-        if response.status_code == 200 and response.content.startswith(b"%PDF"):
-            return paper_no, filename, BytesIO(response.content)
+        response.raise_for_status()
+    
+        content = response.content
+    
+        # Check first KB for PDF signature
+        if b"%PDF" in content[:1024]:
+            return paper_no, filename, BytesIO(content)
+    
         return paper_no, filename, None
-    except Exception:
+    
+    except requests.RequestException as e:
+        print(f"Download failed for {url}: {e}")
         return paper_no, filename, None
 
 
