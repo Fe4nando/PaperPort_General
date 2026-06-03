@@ -26,7 +26,6 @@ st.set_page_config(page_title="PaperPort Public", layout="wide")
 
 LEVELS = st.secrets["LEVELS"]
 DOWNLOAD_DIR = st.secrets["DOWNLOAD_DIR"]
-HEADERS = json.loads(st.secrets["HEADERS"])
 SESSIONS_ALL = st.secrets["SESSIONS_ALL"]
 
 IGCSE_SUBJECTS = json.loads(st.secrets["IGCSE_SUBJECTS"])
