@@ -48,15 +48,19 @@ PAPER_TYPE_OPTIONS = {
     "Insert": "in",
     "Grade Thresholds": "gt",
 }
-
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/137.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/pdf,*/*",
+    "Accept": (
+        "text/html,application/xhtml+xml,"
+        "application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+    ),
     "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 st.markdown(
@@ -346,26 +350,44 @@ def download_paper(args):
     else:
         filename = f"{subject_code}_{session}{year_suffix}_{paper_type_short}_{paper_no}.pdf"
 
-    url = f"https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/{filename}"
+    url = (
+        "https://pastpapers.papacambridge.com/"
+        f"directories/CAIE/CAIE-pastpapers/upload/{filename}"
+    )
 
-    print(url)
-
-    
-    
     try:
-        response = requests.get(url, headers=HEADERS, timeout=8)
-        response.raise_for_status()
-    
+        session_obj = requests.Session()
+
+        response = session_obj.get(
+            url,
+            headers=HEADERS,
+            timeout=15,
+            allow_redirects=True,
+        )
+
+        # Debugging output
+        print("=" * 80)
+        print("URL:", url)
+        print("STATUS:", response.status_code)
+        print("FINAL URL:", response.url)
+        print("CONTENT TYPE:", response.headers.get("Content-Type"))
+        print("SERVER:", response.headers.get("Server"))
+        print("BODY:", response.text[:300])
+        print("=" * 80)
+
+        if response.status_code != 200:
+            return paper_no, filename, None
+
         content = response.content
-    
-        # Check first KB for PDF signature
+
         if b"%PDF" in content[:1024]:
             return paper_no, filename, BytesIO(content)
-    
+
         return paper_no, filename, None
-    
-    except requests.RequestException as e:
-        print(f"Download failed for {url}: {e}")
+
+    except Exception as e:
+        print(f"Download failed for {url}")
+        print(e)
         return paper_no, filename, None
 
 
