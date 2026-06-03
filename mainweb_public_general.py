@@ -340,6 +340,8 @@ def download_paper(args):
 
     url = f"https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/{filename}"
 
+    print(url)
+
     
     
     try:
