@@ -65,6 +65,23 @@ HEADERS = {
 
 st.markdown(
     """
+    <div style="
+        background:#fff3cd;
+        border:1px solid #ffe69c;
+        color:#664d03;
+        padding:15px;
+        border-radius:12px;
+        margin-bottom:20px;
+        font-weight:600;
+    ">
+    ⚠️ Temporary Outage Notice: Past papers from 2010–2026 are currently the only papers available while our paper providers undergo maintenance.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
 <style>
 .stApp {
     background: #ffffff;
