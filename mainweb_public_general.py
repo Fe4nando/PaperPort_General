@@ -355,7 +355,7 @@ def create_public_cover_pdf(level, subject_name, subject_code, paper_type_short,
     packet.seek(0)
     return packet
 
-def try_download(url):
+def try_download(url, source="unknown"):
     try:
         response = requests.get(
             url,
@@ -364,12 +364,16 @@ def try_download(url):
             allow_redirects=True,
         )
         if response.status_code != 200:
+            print(f"[{source}] Failed (HTTP {response.status_code}): {url}")
             return None
         content = response.content
         if b"%PDF" not in content[:1024]:
+            print(f"[{source}] Not a PDF: {url}")
             return None
+        print(f"[{source}] Success: {url}")
         return BytesIO(content)
-    except Exception:
+    except Exception as e:
+        print(f"[{source}] Exception: {url} — {e}")
         return None
 
 def _bestexamhelp_url(subject_code, year_suffix, filename):
@@ -435,14 +439,14 @@ def download_paper(args):
         print(f"Could not generate URL for {subject_code}")
         return paper_no, filename, None
 
-    pdf = try_download(url)
+    pdf = try_download(url,"Best Exam help")
     if pdf:
         return paper_no, filename, pdf
 
     # Fallback to PapaCambridge
     print(f"bestexamhelp failed, trying PapaCambridge: {filename}")
     fallback_url = _papacambridge_url(filename)
-    pdf = try_download(fallback_url)
+    pdf = try_download(fallback_url,"PapaCam)
     if pdf:
         return paper_no, filename, pdf
 
