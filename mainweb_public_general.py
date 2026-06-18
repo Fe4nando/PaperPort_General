@@ -439,20 +439,18 @@ def download_paper(args):
         print(f"Could not generate URL for {subject_code}")
         return paper_no, filename, None
 
-    pdf = try_download(url,"Best Exam help")
+    pdf = try_download(url, source="BestExamHelp")
     if pdf:
         return paper_no, filename, pdf
 
-    # Fallback to PapaCambridge
-    print(f"bestexamhelp failed, trying PapaCambridge: {filename}")
+    print(f"[BestExamHelp] Falling back to PapaCambridge for: {filename}")
     fallback_url = _papacambridge_url(filename)
-    pdf = try_download(fallback_url,"PapaCam)
+    pdf = try_download(fallback_url, source="PapaCambridge")
     if pdf:
         return paper_no, filename, pdf
 
-    print(f"All sources failed for: {filename}")
+    print(f"[All Sources] Failed: {filename}")
     return paper_no, filename, None
-
 
 
 def render_home_page():
