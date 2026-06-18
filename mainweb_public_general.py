@@ -1,7 +1,6 @@
 import concurrent.futures
 import json
 import os
-import queue
 import re
 import smtplib
 import zipfile
@@ -72,7 +71,7 @@ st.markdown(
         margin-bottom:20px;
         font-weight:600;
     ">
-    ⚠️ Temporary Outage Notice: Trying to fix the issues (Gonna Crash out - Fernando).
+    ⚠️ 2026 Paper are not available in the repos - please check other resources (6/7/26 Resource Update).
     </div>
     """,
     unsafe_allow_html=True,
@@ -365,12 +364,16 @@ def try_download(url, source="unknown"):
             allow_redirects=True,
         )
         if response.status_code != 200:
+            print(f"[{source}] Failed (HTTP {response.status_code}): {url}")
             return None
         content = response.content
         if b"%PDF" not in content[:1024]:
+            print(f"[{source}] Not a PDF: {url}")
             return None
+        print(f"[{source}] Success: {url}")
         return BytesIO(content)
-    except Exception:
+    except Exception as e:
+        print(f"[{source}] Exception: {url} — {e}")
         return None
 
 def _bestexamhelp_url(subject_code, year_suffix, filename):
@@ -420,7 +423,7 @@ def _papacambridge_url(filename):
     )
 
 
-def download_paper(args, log_queue=None):
+def download_paper(args):
     subject_code, session, year_suffix, paper_type_short, paper_no = args
 
     if paper_type_short == "gt":
@@ -431,29 +434,22 @@ def download_paper(args, log_queue=None):
             f"{paper_type_short}_{paper_no}.pdf"
         )
 
-    def log(msg):
-        if log_queue:
-            log_queue.put(msg)
-
     url = _bestexamhelp_url(subject_code, year_suffix, filename)
     if not url:
-        log(f"❌ Could not generate URL for {subject_code}")
+        print(f"Could not generate URL for {subject_code}")
         return paper_no, filename, None
 
-    log(f"🔵 [BestExamHelp] Trying: {filename}")
     pdf = try_download(url, source="BestExamHelp")
     if pdf:
-        log(f"✅ [BestExamHelp] Success: {filename}")
         return paper_no, filename, pdf
 
-    log(f"⚠️ [BestExamHelp] Failed — trying PapaCambridge: {filename}")
+    print(f"[BestExamHelp] Falling back to PapaCambridge for: {filename}")
     fallback_url = _papacambridge_url(filename)
     pdf = try_download(fallback_url, source="PapaCambridge")
     if pdf:
-        log(f"✅ [PapaCambridge] Success: {filename}")
         return paper_no, filename, pdf
 
-    log(f"❌ [All Sources] Failed: {filename}")
+    print(f"[All Sources] Failed: {filename}")
     return paper_no, filename, None
 
 
@@ -533,29 +529,10 @@ def render_home_page():
         total_tasks = len(tasks)
         completed = 0
 
-        log_queue = queue.Queue()
-        st.write("### Download Progress")
-        progress = st.progress(0)
-        status_placeholder = st.empty()
-        log_expander = st.expander("📋 Download Logs", expanded=False)
-        log_display = log_expander.empty()
-
-        log_lines = []
-        total_tasks = len(tasks)
-        completed = 0
-
         with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
-            futures = {
-                executor.submit(download_paper, task, log_queue): task
-                for task in tasks
-            }
+            futures = {executor.submit(download_paper, task): task for task in tasks}
             for future in concurrent.futures.as_completed(futures):
                 paper_no, filename, content = future.result()
-
-                # Drain the log queue and update display
-                while not log_queue.empty():
-                    log_lines.append(log_queue.get())
-                log_display.text("\n".join(log_lines[-50:]))  # show last 50 lines
 
                 if content:
                     content.seek(0)
@@ -570,11 +547,6 @@ def render_home_page():
                 completed += 1
                 progress.progress(completed / total_tasks)
                 status_placeholder.caption(f"Processed {completed}/{total_tasks} files")
-
-        # Drain any remaining logs
-        while not log_queue.empty():
-            log_lines.append(log_queue.get())
-        log_display.text("\n".join(log_lines))
 
         if not downloaded:
             st.warning("No valid PDFs were downloaded, so no merged files were created.")
